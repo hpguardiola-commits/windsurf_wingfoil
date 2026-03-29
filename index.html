@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0a1628" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="WindLog" />
+  <meta name="description" content="Registra les teves sessions de windsurf i wingfoil" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <title>WindLog</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ocean-deep: #0a1628;
+      --ocean-mid: #0d2145;
+      --ocean-light: #1a3a6e;
+      --wave: #1e5fa8;
+      --foam: #4a9fd4;
+      --sky: #7ec8e3;
+      --sun: #f4a830;
+      --wind: #e8f4f8;
+      --accent: #00d4ff;
+      --danger: #ff6b4a;
+      --success: #4ade80;
+      --text: #e8f4f8;
+      --text-dim: #7ba5c0;
+      --glass: rgba(255,255,255,0.05);
+      --glass-border: rgba(255,255,255,0.12);
+      --card: rgba(13, 33, 69, 0.85);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: var(--ocean-deep);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Ocean background animation */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(30,95,168,0.5) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(0,212,255,0.15) 0%, transparent 50%),
+        linear-gradient(180deg, #0a1628 0%, #0d2145 40%, #091220 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Wave lines */
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 200px;
+      background: repeating-linear-gradient(
+        180deg,
+        transparent 0px,
+        transparent 18px,
+        rgba(0,212,255,0.04) 18px,
+        rgba(0,212,255,0.04) 20px
+      );
+      mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.8) 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* App wrapper */
+    #app {
+      position: relative;
+      z-index: 1;
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    header {
+      padding: 20px 20px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: linear-gradient(180deg, var(--ocean-deep) 60%, transparent);
+      padding-bottom: 12px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .logo-text {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 32px;
+      letter-spacing: 3px;
+      color: var(--accent);
+      line-height: 1;
+      text-shadow: 0 0 30px rgba(0,212,255,0.5);
+    }
+
+    .logo-sub {
+      font-size: 11px;
+      font-weight: 300;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: var(--text-dim);
+      font-size: 18px;
+    }
+
+    .icon-btn:active { transform: scale(0.93); background: var(--glass-border); }
+
+    /* Nav tabs */
+    nav {
+      display: flex;
+      gap: 4px;
+      padding: 16px 20px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 10px;
+      border-radius: 12px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      text-align: center;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: var(--text-dim);
+    }
+
+    .tab.active {
+      background: var(--wave);
+      border-color: var(--foam);
+      color: var(--wind);
+      box-shadow: 0 4px 20px rgba(30,95,168,0.5);
+    }
+
+    .tab:active { transform: scale(0.97); }
+
+    /* Pages */
+    .page { display: none; padding: 0 20px 100px; flex-direction: column; gap: 16px; }
+    .page.active { display: flex; }
+
+    /* Stats strip */
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 14px 12px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+    }
+
+    .stat-value {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px;
+      color: var(--accent);
+      letter-spacing: 1px;
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 4px;
+    }
+
+    /* Section title */
+    .section-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      letter-spacing: 2px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    /* Session card */
+    .session-card {
+      background: var(--card);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 18px;
+      backdrop-filter: blur(10px);
+      cursor: pointer;
+      transition: all 0.25s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .session-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      border-radius: 20px 0 0 20px;
+    }
+
+    .session-card.windsurf::before { background: linear-gradient(180deg, var(--sun), var(--foam)); }
+    .session-card.wingfoil::before { background: linear-gradient(180deg, var(--accent), var(--success)); }
+
+    .session-card:active { transform: scale(0.98); border-color: var(--foam); }
+
+    .session-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .session-type-badge {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    .windsurf .session-type-badge {
+      background: rgba(244,168,48,0.15);
+      color: var(--sun);
+      border: 1px solid rgba(244,168,48,0.3);
+    }
+
+    .wingfoil .session-type-badge {
+      background: rgba(0,212,255,0.12);
+      color: var(--accent);
+      border: 1px solid rgba(0,212,255,0.25);
+    }
+
+    .session-date {
+      font-size: 12px;
+      color: var(--text-dim);
+      font-family: 'DM Mono', monospace;
+    }
+
+    .session-spot {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .session-meta {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .meta-icon { font-size: 14px; }
+
+    .session-rating {
+      display: flex;
+      gap: 2px;
+      margin-top: 10px;
+    }
+
+    .star { font-size: 14px; }
+    .star.filled { color: var(--sun); }
+    .star.empty { color: rgba(255,255,255,0.15); }
+
+    .session-note {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-top: 10px;
+      font-style: italic;
+      line-height: 1.4;
+      border-top: 1px solid var(--glass-border);
+      padding-top: 10px;
+    }
+
+    /* FAB */
+    .fab {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 60px;
+      height: 60px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, var(--wave), var(--accent));
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      cursor: pointer;
+      box-shadow: 0 8px 30px rgba(0,212,255,0.4);
+      transition: all 0.2s;
+      z-index: 200;
+      color: white;
+    }
+
+    .fab:active { transform: scale(0.92); box-shadow: 0 4px 15px rgba(0,212,255,0.3); }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(8px);
+      z-index: 300;
+      display: none;
+      align-items: flex-end;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: linear-gradient(180deg, var(--ocean-mid) 0%, var(--ocean-deep) 100%);
+      border: 1px solid var(--glass-border);
+      border-radius: 28px 28px 0 0;
+      width: 100%;
+      max-height: 92vh;
+      overflow-y: auto;
+      padding: 24px 20px 40px;
+      animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    .modal-handle {
+      width: 36px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--glass-border);
+      margin: 0 auto 20px;
+    }
+
+    .modal-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 26px;
+      letter-spacing: 2px;
+      color: var(--accent);
+      margin-bottom: 24px;
+    }
+
+    /* Form */
+    .form-group { margin-bottom: 18px; }
+
+    .form-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .type-toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .type-btn {
+      padding: 14px;
+      border-radius: 14px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      color: var(--text-dim);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .type-btn.selected-windsurf {
+      background: rgba(244,168,48,0.15);
+      border-color: var(--sun);
+      color: var(--sun);
+    }
+
+    .type-btn.selected-wingfoil {
+      background: rgba(0,212,255,0.12);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      border-color: var(--foam);
+    }
+
+    .form-select option { background: var(--ocean-mid); }
+
+    .form-textarea { resize: none; min-height: 80px; line-height: 1.5; }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    /* Rating stars input */
+    .rating-input {
+      display: flex;
+      gap: 8px;
+    }
+
+    .rating-star {
+      font-size: 28px;
+      cursor: pointer;
+      transition: transform 0.15s;
+      color: rgba(255,255,255,0.15);
+    }
+
+    .rating-star.on { color: var(--sun); }
+    .rating-star:active { transform: scale(1.3); }
+
+    /* Wind scale */
+    .wind-scale {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+
+    .bft-btn {
+      padding: 8px 4px;
+      border-radius: 10px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      color: var(--text-dim);
+      font-size: 12px;
+      font-family: 'DM Mono', monospace;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+
+    .bft-btn.selected {
+      background: rgba(126,200,227,0.2);
+      border-color: var(--sky);
+      color: var(--sky);
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 16px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--wave), var(--accent));
+      border: none;
+      color: white;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      margin-top: 8px;
+      box-shadow: 0 6px 24px rgba(0,212,255,0.3);
+      transition: all 0.2s;
+    }
+
+    .btn-primary:active { transform: scale(0.98); }
+
+    .btn-secondary {
+      width: 100%;
+      padding: 14px;
+      border-radius: 16px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      color: var(--text-dim);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: all 0.2s;
+    }
+
+    .btn-secondary:active { transform: scale(0.98); }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 4px;
+    }
+
+    .filter-bar::-webkit-scrollbar { display: none; }
+
+    .filter-chip {
+      flex-shrink: 0;
+      padding: 7px 14px;
+      border-radius: 20px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      font-size: 12px;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .filter-chip.active {
+      background: var(--wave);
+      border-color: var(--foam);
+      color: var(--wind);
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-dim);
+    }
+
+    .empty-icon { font-size: 56px; margin-bottom: 16px; opacity: 0.5; }
+    .empty-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; margin-bottom: 8px; }
+    .empty-text { font-size: 14px; line-height: 1.5; }
+
+    /* History chart */
+    .chart-container {
+      background: var(--card);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 18px;
+      backdrop-filter: blur(10px);
+    }
+
+    .chart-title {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 14px;
+    }
+
+    .bar-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 80px;
+    }
+
+    .bar-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      height: 100%;
+      justify-content: flex-end;
+    }
+
+    .bar {
+      width: 100%;
+      border-radius: 6px 6px 0 0;
+      min-height: 4px;
+      transition: height 0.5s ease;
+    }
+
+    .bar.windsurf-bar { background: linear-gradient(180deg, var(--sun), rgba(244,168,48,0.4)); }
+    .bar.wingfoil-bar { background: linear-gradient(180deg, var(--accent), rgba(0,212,255,0.3)); }
+    .bar.mixed-bar { background: linear-gradient(180deg, var(--foam), rgba(74,159,212,0.3)); }
+
+    .bar-label {
+      font-size: 9px;
+      color: var(--text-dim);
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* Settings page */
+    .settings-section {
+      background: var(--card);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      backdrop-filter: blur(10px);
+      overflow: hidden;
+    }
+
+    .settings-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--glass-border);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .settings-item:last-child { border-bottom: none; }
+    .settings-item:active { background: var(--glass); }
+
+    .settings-item-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .settings-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .si-blue { background: rgba(30,95,168,0.3); }
+    .si-green { background: rgba(74,222,128,0.15); }
+    .si-orange { background: rgba(244,168,48,0.15); }
+    .si-red { background: rgba(255,107,74,0.15); }
+
+    .settings-label { font-size: 15px; font-weight: 500; }
+    .settings-desc { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+    .settings-arrow { color: var(--text-dim); font-size: 14px; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--ocean-light);
+      border: 1px solid var(--foam);
+      color: var(--text);
+      padding: 12px 20px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 500;
+      white-space: nowrap;
+      backdrop-filter: blur(10px);
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Detail modal content */
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .detail-item {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .detail-item-label {
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+
+    .detail-item-value {
+      font-family: 'DM Mono', monospace;
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .delete-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 16px;
+      background: rgba(255,107,74,0.12);
+      border: 1px solid rgba(255,107,74,0.3);
+      color: var(--danger);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: all 0.2s;
+    }
+
+    .delete-btn:active { background: rgba(255,107,74,0.25); }
+
+    /* Scroll fix */
+    .page { animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="logo">
+      <span class="logo-text">WindLog</span>
+      <span class="logo-sub">Sessions</span>
+    </div>
+    <div class="header-actions">
+      <div class="icon-btn" id="exportBtn" title="Exportar JSON">💾</div>
+    </div>
+  </header>
+
+  <nav>
+    <div class="tab active" data-page="home">🏠 Inici</div>
+    <div class="tab" data-page="history">📋 Historial</div>
+    <div class="tab" data-page="stats">📊 Estadístics</div>
+    <div class="tab" data-page="settings">⚙️ Opcions</div>
+  </nav>
+
+  <!-- HOME PAGE -->
+  <div class="page active" id="page-home">
+    <div class="stats-strip" id="homeStats"></div>
+    <div class="section-title">Última sessió</div>
+    <div id="lastSession"></div>
+    <div class="section-title">Avui</div>
+    <div id="todaySessions"></div>
+  </div>
+
+  <!-- HISTORY PAGE -->
+  <div class="page" id="page-history">
+    <div class="filter-bar" id="filterBar">
+      <div class="filter-chip active" data-filter="all">Totes</div>
+      <div class="filter-chip" data-filter="windsurf">🏄 Windsurf</div>
+      <div class="filter-chip" data-filter="wingfoil">🪁 Wingfoil</div>
+    </div>
+    <div id="sessionList"></div>
+  </div>
+
+  <!-- STATS PAGE -->
+  <div class="page" id="page-stats">
+    <div class="chart-container">
+      <div class="chart-title">Sessions per mes (últims 6 mesos)</div>
+      <div class="bar-chart" id="monthChart"></div>
+    </div>
+    <div class="stats-strip" id="statsGrid"></div>
+    <div id="topSpots"></div>
+  </div>
+
+  <!-- SETTINGS PAGE -->
+  <div class="page" id="page-settings">
+    <div class="settings-section">
+      <div class="settings-item" id="settingsExport">
+        <div class="settings-item-left">
+          <div class="settings-icon si-blue">💾</div>
+          <div>
+            <div class="settings-label">Exportar a JSON</div>
+            <div class="settings-desc">Descarrega totes les sessions</div>
+          </div>
+        </div>
+        <span class="settings-arrow">›</span>
+      </div>
+      <div class="settings-item" id="settingsImport">
+        <div class="settings-item-left">
+          <div class="settings-icon si-orange">📂</div>
+          <div>
+            <div class="settings-label">Importar JSON</div>
+            <div class="settings-desc">Carrega sessions des d'un fitxer</div>
+          </div>
+        </div>
+        <span class="settings-arrow">›</span>
+      </div>
+      <div class="settings-item" id="settingsDrive">
+        <div class="settings-item-left">
+          <div class="settings-icon si-green">☁️</div>
+          <div>
+            <div class="settings-label">Desa a Google Drive</div>
+            <div class="settings-desc">Exporta i desa a Drive manualment</div>
+          </div>
+        </div>
+        <span class="settings-arrow">›</span>
+      </div>
+      <div class="settings-item" id="settingsClear">
+        <div class="settings-item-left">
+          <div class="settings-icon si-red">🗑️</div>
+          <div>
+            <div class="settings-label">Esborrar tot</div>
+            <div class="settings-desc">Elimina totes les sessions</div>
+          </div>
+        </div>
+        <span class="settings-arrow">›</span>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text-dim);text-align:center;padding:16px;line-height:1.6;">
+      WindLog v1.0 · PWA instal·lable<br>
+      Les dades es guarden localment al dispositiu.<br>
+      Exporta regularment per fer còpies de seguretat.
+    </div>
+    <div id="autoSaveInfo" style="background:var(--card);border:1px solid var(--glass-border);border-radius:16px;padding:16px;font-size:13px;color:var(--text-dim);line-height:1.6;">
+      <strong style="color:var(--text);">📅 Exportació periòdica a Drive</strong><br><br>
+      Per exportar automàticament a Google Drive:<br>
+      1. Exporta el JSON des d'aquí<br>
+      2. Puja'l manualment a Drive<br>
+      3. O usa l'app de Drive per sincronitzar la carpeta de descàrregues<br><br>
+      <span style="color:var(--accent);">Consell:</span> Activa la sincronització automàtica de la carpeta Descàrregues a l'app de Google Drive.
+    </div>
+  </div>
+</div>
+
+<!-- FAB -->
+<button class="fab" id="fab">＋</button>
+
+<!-- NEW SESSION MODAL -->
+<div class="modal-overlay" id="newSessionModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modalTitle">NOVA SESSIÓ</div>
+
+    <div class="form-group">
+      <label class="form-label">Modalitat</label>
+      <div class="type-toggle">
+        <button class="type-btn selected-windsurf" data-type="windsurf" onclick="selectType('windsurf')">🏄 Windsurf</button>
+        <button class="type-btn" data-type="wingfoil" onclick="selectType('wingfoil')">🪁 Wingfoil</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Data i hora</label>
+      <input type="datetime-local" class="form-input" id="sessionDate" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Spot / Platja</label>
+      <input type="text" class="form-input" id="sessionSpot" placeholder="Ex: Punta Prima, Tarifa..." />
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Durada</label>
+        <select class="form-select" id="sessionDuration">
+          <option value="0.5">30 min</option>
+          <option value="1">1 hora</option>
+          <option value="1.5">1h 30min</option>
+          <option value="2" selected>2 hores</option>
+          <option value="2.5">2h 30min</option>
+          <option value="3">3 hores</option>
+          <option value="4">4 hores</option>
+          <option value="5">5 hores</option>
+          <option value="6">+6 hores</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Vent (Beaufort)</label>
+        <select class="form-select" id="sessionWind">
+          <option value="">—</option>
+          <option value="1">Bf 1 (1-5 kn)</option>
+          <option value="2">Bf 2 (6-11 kn)</option>
+          <option value="3">Bf 3 (12-19 kn)</option>
+          <option value="4">Bf 4 (20-28 kn)</option>
+          <option value="5" selected>Bf 5 (29-38 kn)</option>
+          <option value="6">Bf 6 (39-49 kn)</option>
+          <option value="7">Bf 7 (50-61 kn)</option>
+          <option value="8">Bf 8+ (62+ kn)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Direcció vent</label>
+        <select class="form-select" id="sessionWindDir">
+          <option value="">—</option>
+          <option value="N">N</option>
+          <option value="NE">NE</option>
+          <option value="E">E</option>
+          <option value="SE">SE</option>
+          <option value="S">S</option>
+          <option value="SW">SW</option>
+          <option value="W">W</option>
+          <option value="NW">NW</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mar (m)</label>
+        <select class="form-select" id="sessionWave">
+          <option value="">—</option>
+          <option value="0.2">0.2m</option>
+          <option value="0.5">0.5m</option>
+          <option value="0.8">0.8m</option>
+          <option value="1">1m</option>
+          <option value="1.5">1.5m</option>
+          <option value="2">2m</option>
+          <option value="3">3m+</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group" id="wingGroup">
+      <label class="form-label">Material</label>
+      <div class="form-row">
+        <input type="text" class="form-input" id="sessionBoard" placeholder="Tauler (ex: 110L)" />
+        <input type="text" class="form-input" id="sessionSail" placeholder="Vela/Ala (ex: 5.5m)" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Valoració</label>
+      <div class="rating-input" id="ratingInput">
+        <span class="rating-star on" data-v="1">★</span>
+        <span class="rating-star on" data-v="2">★</span>
+        <span class="rating-star on" data-v="3">★</span>
+        <span class="rating-star" data-v="4">★</span>
+        <span class="rating-star" data-v="5">★</span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <textarea class="form-textarea" id="sessionNotes" placeholder="Com ha anat? Maniobres, sensacions..."></textarea>
+    </div>
+
+    <button class="btn-primary" id="saveSessionBtn">DESAR SESSIÓ</button>
+    <button class="btn-secondary" id="cancelSessionBtn">Cancel·lar</button>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal" id="detailContent"></div>
+</div>
+
+<!-- IMPORT input -->
+<input type="file" id="importFile" accept=".json" style="display:none" />
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ---- DATA LAYER ----
+  const DB_KEY = 'windlog_sessions';
+
+  function getSessions() {
+    try { return JSON.parse(localStorage.getItem(DB_KEY)) || []; }
+    catch { return []; }
+  }
+
+  function saveSessions(sessions) {
+    localStorage.setItem(DB_KEY, JSON.stringify(sessions));
+  }
+
+  function addSession(session) {
+    const sessions = getSessions();
+    session.id = Date.now().toString();
+    sessions.unshift(session);
+    saveSessions(sessions);
+    return session;
+  }
+
+  function deleteSession(id) {
+    const sessions = getSessions().filter(s => s.id !== id);
+    saveSessions(sessions);
+  }
+
+  // ---- UI STATE ----
+  let currentType = 'windsurf';
+  let currentRating = 3;
+  let currentFilter = 'all';
+  let editingId = null;
+
+  // ---- TABS ----
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('page-' + tab.dataset.page).classList.add('active');
+      renderPage(tab.dataset.page);
+    });
+  });
+
+  // ---- RENDER ----
+  function renderPage(page) {
+    if (page === 'home') renderHome();
+    if (page === 'history') renderHistory();
+    if (page === 'stats') renderStats();
+  }
+
+  function renderHome() {
+    const sessions = getSessions();
+    const totalH = sessions.reduce((a, s) => a + parseFloat(s.duration || 0), 0);
+    const ws = sessions.filter(s => s.type === 'windsurf').length;
+    const wf = sessions.filter(s => s.type === 'wingfoil').length;
+
+    document.getElementById('homeStats').innerHTML = `
+      <div class="stat-card"><div class="stat-value">${sessions.length}</div><div class="stat-label">Sessions</div></div>
+      <div class="stat-card"><div class="stat-value">${totalH.toFixed(0)}h</div><div class="stat-label">Total hores</div></div>
+      <div class="stat-card"><div class="stat-value">${ws}·${wf}</div><div class="stat-label">WS·WF</div></div>
+    `;
+
+    const last = sessions[0];
+    document.getElementById('lastSession').innerHTML = last
+      ? sessionCardHTML(last)
+      : '<div class="empty-state"><div class="empty-icon">🌊</div><div class="empty-title">Sense sessions</div><div class="empty-text">Afegeix la teva primera sessió!</div></div>';
+
+    const today = new Date().toDateString();
+    const todayS = sessions.filter(s => new Date(s.date).toDateString() === today);
+    document.getElementById('todaySessions').innerHTML = todayS.length
+      ? todayS.map(sessionCardHTML).join('')
+      : '<div style="font-size:13px;color:var(--text-dim);padding:10px 0;">Cap sessió avui encara.</div>';
+
+    bindCardEvents();
+  }
+
+  function renderHistory() {
+    const sessions = getSessions().filter(s =>
+      currentFilter === 'all' || s.type === currentFilter
+    );
+    const container = document.getElementById('sessionList');
+    container.innerHTML = sessions.length
+      ? sessions.map(sessionCardHTML).join('')
+      : '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Sense sessions</div><div class="empty-text">No hi ha sessions amb aquest filtre.</div></div>';
+    bindCardEvents();
+  }
+
+  function renderStats() {
+    const sessions = getSessions();
+    if (!sessions.length) {
+      document.getElementById('monthChart').innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:20px;">Sense dades</div>';
+      document.getElementById('statsGrid').innerHTML = '';
+      document.getElementById('topSpots').innerHTML = '';
+      return;
+    }
+
+    // Month chart
+    const months = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({ label: d.toLocaleString('ca', { month: 'short' }).slice(0,3), month: d.getMonth(), year: d.getFullYear(), count: 0, type: 'mixed' });
+    }
+    sessions.forEach(s => {
+      const d = new Date(s.date);
+      const m = months.find(m => m.month === d.getMonth() && m.year === d.getFullYear());
+      if (m) m.count++;
+    });
+    const maxC = Math.max(...months.map(m => m.count), 1);
+    document.getElementById('monthChart').innerHTML = months.map(m => `
+      <div class="bar-wrap">
+        <div class="bar mixed-bar" style="height:${Math.max(4, (m.count / maxC) * 70)}px"></div>
+        <div class="bar-label">${m.label}</div>
+      </div>
+    `).join('');
+
+    // Stats
+    const avgRating = (sessions.reduce((a, s) => a + (s.rating || 3), 0) / sessions.length).toFixed(1);
+    const totalH = sessions.reduce((a, s) => a + parseFloat(s.duration || 0), 0).toFixed(1);
+    const avgH = (totalH / sessions.length).toFixed(1);
+    document.getElementById('statsGrid').innerHTML = `
+      <div class="stat-card"><div class="stat-value">${avgRating}★</div><div class="stat-label">Valoració mitjana</div></div>
+      <div class="stat-card"><div class="stat-value">${avgH}h</div><div class="stat-label">Mitjana sessió</div></div>
+      <div class="stat-card"><div class="stat-value">${totalH}h</div><div class="stat-label">Hores totals</div></div>
+    `;
+
+    // Top spots
+    const spotCounts = {};
+    sessions.forEach(s => { if (s.spot) spotCounts[s.spot] = (spotCounts[s.spot] || 0) + 1; });
+    const sorted = Object.entries(spotCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    document.getElementById('topSpots').innerHTML = sorted.length ? `
+      <div class="section-title">Top Spots</div>
+      <div class="settings-section">
+        ${sorted.map((([spot, count], i) => `
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <div class="settings-icon si-blue">${['🥇','🥈','🥉'][i]}</div>
+              <div><div class="settings-label">${spot}</div><div class="settings-desc">${count} sessions</div></div>
+            </div>
+          </div>
+        `)).join('')}
+      </div>
+    ` : '';
+  }
+
+  function sessionCardHTML(s) {
+    const stars = [1,2,3,4,5].map(i =>
+      `<span class="star ${i <= (s.rating || 3) ? 'filled' : 'empty'}">★</span>`
+    ).join('');
+    const meta = [
+      s.windBf ? `<span class="meta-item"><span class="meta-icon">💨</span>Bf ${s.windBf}${s.windDir ? ' ' + s.windDir : ''}</span>` : '',
+      s.duration ? `<span class="meta-item"><span class="meta-icon">⏱</span>${s.duration}h</span>` : '',
+      s.wave ? `<span class="meta-item"><span class="meta-icon">🌊</span>${s.wave}m</span>` : '',
+      s.sail ? `<span class="meta-item"><span class="meta-icon">⛵</span>${s.sail}</span>` : '',
+    ].filter(Boolean).join('');
+
+    const dateStr = new Date(s.date).toLocaleDateString('ca', { day: '2-digit', month: 'short', year: 'numeric' });
+
+    return `<div class="session-card ${s.type}" data-id="${s.id}" style="margin-bottom:10px;">
+      <div class="session-header">
+        <div class="session-type-badge">${s.type === 'windsurf' ? '🏄 Windsurf' : '🪁 Wingfoil'}</div>
+        <div class="session-date">${dateStr}</div>
+      </div>
+      <div class="session-spot">${s.spot || 'Sense spot'}</div>
+      <div class="session-meta">${meta}</div>
+      <div class="session-rating">${stars}</div>
+      ${s.notes ? `<div class="session-note">${s.notes}</div>` : ''}
+    </div>`;
+  }
+
+  function bindCardEvents() {
+    document.querySelectorAll('.session-card').forEach(card => {
+      card.addEventListener('click', () => showDetail(card.dataset.id));
+    });
+  }
+
+  // ---- DETAIL ----
+  function showDetail(id) {
+    const s = getSessions().find(s => s.id === id);
+    if (!s) return;
+    const dateStr = new Date(s.date).toLocaleString('ca', { dateStyle: 'full', timeStyle: 'short' });
+    const stars = [1,2,3,4,5].map(i => `<span class="star ${i <= (s.rating || 3) ? 'filled' : 'empty'}" style="font-size:20px;">★</span>`).join('');
+
+    document.getElementById('detailContent').innerHTML = `
+      <div class="modal-handle"></div>
+      <div class="session-type-badge ${s.type}" style="display:inline-block;margin-bottom:12px;">${s.type === 'windsurf' ? '🏄 Windsurf' : '🪁 Wingfoil'}</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;margin-bottom:4px;">${s.spot || 'Sense spot'}</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:20px;">${dateStr}</div>
+      <div class="detail-grid">
+        <div class="detail-item"><div class="detail-item-label">Durada</div><div class="detail-item-value">${s.duration}h</div></div>
+        <div class="detail-item"><div class="detail-item-label">Vent</div><div class="detail-item-value">${s.windBf ? 'Bf ' + s.windBf : '—'}${s.windDir ? ' ' + s.windDir : ''}</div></div>
+        <div class="detail-item"><div class="detail-item-label">Mar</div><div class="detail-item-value">${s.wave ? s.wave + 'm' : '—'}</div></div>
+        <div class="detail-item"><div class="detail-item-label">Material</div><div class="detail-item-value" style="font-size:13px;">${s.board || '—'} / ${s.sail || '—'}</div></div>
+      </div>
+      <div style="display:flex;gap:4px;margin-bottom:16px;">${stars}</div>
+      ${s.notes ? `<div class="session-note" style="font-style:normal;font-size:14px;line-height:1.6;">${s.notes}</div>` : ''}
+      <button class="delete-btn" onclick="confirmDelete('${s.id}')">🗑 Eliminar sessió</button>
+      <button class="btn-secondary" onclick="closeDetail()">Tancar</button>
+    `;
+
+    document.getElementById('detailModal').classList.add('open');
+  }
+
+  function closeDetail() {
+    document.getElementById('detailModal').classList.remove('open');
+  }
+
+  function confirmDelete(id) {
+    if (confirm('Segur que vols eliminar aquesta sessió?')) {
+      deleteSession(id);
+      closeDetail();
+      renderPage(document.querySelector('.tab.active').dataset.page);
+      showToast('Sessió eliminada');
+    }
+  }
+
+  document.getElementById('detailModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('detailModal')) closeDetail();
+  });
+
+  // ---- NEW SESSION MODAL ----
+  document.getElementById('fab').addEventListener('click', openNewSession);
+
+  function openNewSession() {
+    editingId = null;
+    document.getElementById('modalTitle').textContent = 'NOVA SESSIÓ';
+    const now = new Date();
+    now.setMinutes(0, 0, 0);
+    document.getElementById('sessionDate').value = now.toISOString().slice(0, 16);
+    document.getElementById('sessionSpot').value = '';
+    document.getElementById('sessionDuration').value = '2';
+    document.getElementById('sessionWind').value = '5';
+    document.getElementById('sessionWindDir').value = '';
+    document.getElementById('sessionWave').value = '';
+    document.getElementById('sessionBoard').value = '';
+    document.getElementById('sessionSail').value = '';
+    document.getElementById('sessionNotes').value = '';
+    selectType('windsurf');
+    setRating(3);
+    document.getElementById('newSessionModal').classList.add('open');
+  }
+
+  document.getElementById('cancelSessionBtn').addEventListener('click', () => {
+    document.getElementById('newSessionModal').classList.remove('open');
+  });
+
+  document.getElementById('newSessionModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('newSessionModal'))
+      document.getElementById('newSessionModal').classList.remove('open');
+  });
+
+  // Type selection
+  window.selectType = function(type) {
+    currentType = type;
+    document.querySelectorAll('.type-btn').forEach(btn => {
+      btn.className = 'type-btn';
+      if (btn.dataset.type === type) btn.className = 'type-btn selected-' + type;
+    });
+  };
+
+  // Rating
+  document.querySelectorAll('.rating-star').forEach(star => {
+    star.addEventListener('click', () => setRating(parseInt(star.dataset.v)));
+  });
+
+  function setRating(v) {
+    currentRating = v;
+    document.querySelectorAll('.rating-star').forEach(s => {
+      s.classList.toggle('on', parseInt(s.dataset.v) <= v);
+    });
+  }
+
+  // Filters
+  document.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      currentFilter = chip.dataset.filter;
+      renderHistory();
+    });
+  });
+
+  // Save session
+  document.getElementById('saveSessionBtn').addEventListener('click', () => {
+    const spot = document.getElementById('sessionSpot').value.trim();
+    const date = document.getElementById('sessionDate').value;
+    if (!spot) { showToast('⚠️ Indica el spot!'); return; }
+    if (!date) { showToast('⚠️ Indica la data!'); return; }
+
+    const session = {
+      type: currentType,
+      date: new Date(date).toISOString(),
+      spot,
+      duration: parseFloat(document.getElementById('sessionDuration').value),
+      windBf: document.getElementById('sessionWind').value,
+      windDir: document.getElementById('sessionWindDir').value,
+      wave: document.getElementById('sessionWave').value,
+      board: document.getElementById('sessionBoard').value.trim(),
+      sail: document.getElementById('sessionSail').value.trim(),
+      rating: currentRating,
+      notes: document.getElementById('sessionNotes').value.trim(),
+    };
+
+    addSession(session);
+    document.getElementById('newSessionModal').classList.remove('open');
+    showToast('✅ Sessió desada!');
+    renderPage(document.querySelector('.tab.active').dataset.page);
+  });
+
+  // ---- EXPORT ----
+  function exportJSON() {
+    const sessions = getSessions();
+    const blob = new Blob([JSON.stringify({ version: 1, exported: new Date().toISOString(), sessions }, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `windlog_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    showToast('💾 JSON exportat!');
+  }
+
+  document.getElementById('exportBtn').addEventListener('click', exportJSON);
+  document.getElementById('settingsExport').addEventListener('click', exportJSON);
+
+  // ---- IMPORT ----
+  document.getElementById('settingsImport').addEventListener('click', () => {
+    document.getElementById('importFile').click();
+  });
+
+  document.getElementById('importFile').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = evt => {
+      try {
+        const data = JSON.parse(evt.target.result);
+        const imported = data.sessions || (Array.isArray(data) ? data : []);
+        const existing = getSessions();
+        const existingIds = new Set(existing.map(s => s.id));
+        const newOnes = imported.filter(s => !existingIds.has(s.id));
+        saveSessions([...newOnes, ...existing]);
+        showToast(`✅ ${newOnes.length} sessions importades`);
+        renderPage(document.querySelector('.tab.active').dataset.page);
+      } catch {
+        showToast('❌ Error llegint el fitxer');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  // ---- DRIVE ----
+  document.getElementById('settingsDrive').addEventListener('click', () => {
+    exportJSON();
+    setTimeout(() => {
+      showToast('☁️ Obre Google Drive per pujar-lo');
+    }, 800);
+  });
+
+  // ---- CLEAR ----
+  document.getElementById('settingsClear').addEventListener('click', () => {
+    if (confirm('Segur que vols eliminar TOTES les sessions? Aquesta acció no es pot desfer.')) {
+      saveSessions([]);
+      showToast('🗑 Totes les sessions eliminades');
+      renderPage(document.querySelector('.tab.active').dataset.page);
+    }
+  });
+
+  // ---- TOAST ----
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  // ---- INIT ----
+  renderHome();
+
+  // Service Worker registration
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>
