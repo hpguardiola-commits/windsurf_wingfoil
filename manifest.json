@@ -2,7 +2,7 @@
   "name": "WindLog - Sessions de Windsurf i Wingfoil",
   "short_name": "WindLog",
   "description": "Registra i visualitza les teves sessions de windsurf i wingfoil",
-  "start_url": "https://hpguardiola-commits.github.io/windsurf_wingfoil/index.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0a1628",
   "theme_color": "#0a1628",
